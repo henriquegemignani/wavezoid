@@ -103,13 +103,33 @@ local function alignedPrint(msg, x, y, anchorX, anchorY)
     love.graphics.print(msg, x - w * anchorX, y - h * anchorY)
 end
 
+local function alignedRectangle(x, y, width, height, anchorX, anchorY)
+    love.graphics.rectangle("fill",
+        x - width * anchorX, y - height * anchorY,
+        width, height)
+end
+
+local function drawButton(x, y, label)
+    local width = 50
+    local height = 50
+    local border = 4
+
+    love.graphics.setColor(120, 120, 120, 255)
+    alignedRectangle(x, y, width + border, height + border, 0.5, 0.5)
+    love.graphics.setColor(80, 80, 80, 255)
+    alignedRectangle(x, y, width, height, 0.5, 0.5)
+
+    love.graphics.setColor(255, 255, 255, 255)
+    alignedPrint(label, x, y, 0.5, 0.5)
+end
+
 function love.draw()
     renderWave(state.alphaWave, constants.alphaWave)
     alignedPrint("α", 5, constants.alphaWave.y, 0, 1)
-    alignedPrint(string.format("%d%%", state.alphaAffinity * 100), screenWidth - 5, constants.alphaWave.y, 1, 1)
+    alignedPrint(string.format("%d%% ψ", state.alphaAffinity * 100), screenWidth - 5, constants.alphaWave.y, 1, 1)
     renderWave(state.betaWave, constants.betaWave)
     alignedPrint("β", 5, constants.betaWave.y, 0, 0)
-    alignedPrint(string.format("%d%%", state.betaAffinity * 100), screenWidth - 5, constants.betaWave.y, 1, 0)
+    alignedPrint(string.format("%d%% ψ", state.betaAffinity * 100), screenWidth - 5, constants.betaWave.y, 1, 0)
 
     love.graphics.setColor(unpack(constants.centerBarColor))
     local centerBarWidth = constants.centerBarWidth
@@ -117,4 +137,10 @@ function love.draw()
 
     love.graphics.setColor(255, 255, 255, 255)
     alignedPrint(string.format("Score: %d", state.playerScore), centerX, screenHeight - 5, 0.5, 1.0)
+
+    drawButton(screenWidth / 4, screenHeight * 3/4 - 50, "ξα")
+    drawButton(screenWidth / 4, screenHeight * 3/4 + 50, "ξβ")
+
+    drawButton(screenWidth * 3/4, screenHeight * 3/4 - 50, "+ αψ")
+    drawButton(screenWidth * 3/4, screenHeight * 3/4 + 50, "+ βψ")
 end
