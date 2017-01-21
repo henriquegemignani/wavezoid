@@ -9,10 +9,10 @@ local function genButton(x, y, label)
 end
 
 local buttons = {}
-buttons.pulse_alpha = genButton(1 / 4, 3/4 - 0.1, "ξα")
-buttons.pulse_beta = genButton(1 / 4, 3/4 + 0.1, "ξβ")
-buttons.affinity_alpha = genButton(3/4, 3/4 - 0.1, "ψ->α")
-buttons.affinity_beta = genButton(3/4, 3/4 + 0.1, "ψ->β")
+buttons.pulse_alpha     = genButton(2/8, 14/16, "ξα")
+buttons.pulse_beta      = genButton(3/8, 14/16, "ξβ")
+buttons.affinity_alpha  = genButton(5/8, 14/16, "ψ->α")
+buttons.affinity_beta   = genButton(6/8, 14/16, "ψ->β")
 
 local function genGlobals()
     screenWidth, screenHeight = love.graphics.getDimensions()
@@ -93,6 +93,10 @@ function love.update(dt)
     updateWave(state.alphaWave, dt)
     updateWave(state.betaWave, dt)
 
+    if state.actionCooldownTimer > 0 then
+        state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
+    end
+
     local alphaAffinity, betaAffinity = calculateAffinities()
 
     state.playerScore = state.playerScore +
@@ -100,7 +104,6 @@ function love.update(dt)
         +
         getWaveIntensityAt(state.betaWave, state.betaWave.position) * betaAffinity)
         * dt
-
 
     local inboundChannel = love.thread.getChannel("inbound")
     local command = inboundChannel:pop()
@@ -204,6 +207,11 @@ local function drawButton(button)
 
     love.graphics.setColor(255, 255, 255, 255)
     alignedPrint(label, x, y, 0.5, 0.5)
+
+    if state.actionCooldownTimer > 0 then
+        love.graphics.setColor(0, 0, 0, 150)
+        alignedRectangle(x, y, width + border, height + border, 0.5, 0.5)
+    end
 end
 
 local function isInsideButton(button, x, y)
@@ -227,14 +235,27 @@ function love.draw()
 
     love.graphics.setColor(unpack(constants.centerBarColor))
     local centerBarWidth = constants.centerBarWidth
-    love.graphics.rectangle("fill", centerX - centerBarWidth / 2, 0, centerBarWidth, screenHeight)
+    alignedRectangle(
+        centerX, (constants.alphaWave.y + constants.betaWave.y) / 2,
+        centerBarWidth, constants.betaWave.y - constants.alphaWave.y + 80,
+        0.5, 0.5)
 
     love.graphics.setColor(255, 255, 255, 255)
-    alignedPrint(string.format("Score: %d", state.playerScore), centerX, screenHeight - 5, 0.5, 1.0)
+    alignedPrint(string.format("Score: %d", state.playerScore), centerX, 5, 0.5, 0.0)
 
     for _, button in pairs(buttons) do
         drawButton(button)
     end
+
+    local cooldownRemaining = state.actionCooldownTimer / constants.actionCooldown
+    local middleAngle = (1 - cooldownRemaining) * math.pi * 2 - math.pi/2
+    love.graphics.setColor(100, 100, 100,
+        state.actionCooldownTimer > 0 and 255
+        or 100
+    )
+    love.graphics.arc("fill", centerX, screenHeight * 14/16, 30, -math.pi/2, middleAngle)
+    love.graphics.setColor(255, 0, 0, 255)
+    love.graphics.arc("fill", centerX, screenHeight * 14/16, 30, middleAngle, math.pi * 3/2)
 end
 
 function love.mousemoved(x, y)
@@ -253,7 +274,7 @@ function love.mousepressed(x, y, mouseButton)
     if mouseButton == 1 then
         state.mouseDown = true
         for _, button in pairs(buttons) do
-            if isInsideButton(button, x, y) then
+            if state.actionCooldownTimer <= 0 and isInsideButton(button, x, y) then
                 button.pressing = true
             end
         end
@@ -265,6 +286,7 @@ function love.mousereleased(x, y, mouseButton)
         state.mouseDown = false
         for _, button in pairs(buttons) do
             if button.pressing and isInsideButton(button, x, y) then
+                state.actionCooldownTimer = constants.actionCooldown
                 button.onRelease()
             end
             button.pressing = false

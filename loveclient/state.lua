@@ -1,6 +1,7 @@
 
 return {
     playerScore = 0,
+    actionCooldownTimer = 0,
     affinitySlider = 1,
 
     alphaWave = {

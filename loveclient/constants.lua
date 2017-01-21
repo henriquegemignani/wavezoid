@@ -5,14 +5,15 @@ return {
     playerWaveRadius = 200,
     centerBarWidth = 50,
     centerBarColor = {255, 255, 255, 100},
+    actionCooldown = 1.5,
 
     pixelSize = 1/16,
     alphaWave = {
-        y = 100,
+        y = 125,
         color = {255, 0, 0, 255},
     },
     betaWave = {
-        y = 250,
+        y = 280,
         color = {0, 255, 0, 255},
     },
 }
