@@ -24,11 +24,18 @@ end
 
 function love.load()
     require("lurker").postswap = genGlobals
+    require("lurker").preswap = function(name)
+        if name == "multiplayer.lua" or name == "multiplayer_thread.lua" then
+            return true
+        end
+    end
     font = love.graphics.setNewFont("DejaVuSansMono.ttf", 20)
     genGlobals()
+    require("multiplayer"):start()
 end
 
 local function updateWave(wave, dt)
+    wave.velocity = 20
     wave.position = wave.position + wave.velocity * dt
 
     local waveRightCorner = wave.position - screenWidth * constants.pixelSize
@@ -73,6 +80,14 @@ local function calculateAffinities()
     end
 end
 
+local function sendPulse(waveState, intensity, width)
+    table.insert(waveState.pulses, {
+        position = waveState.position + 4 * waveState.velocity,
+        intensity = intensity,
+        width = width,
+    })
+end
+
 function love.update(dt)
     require("lurker").update()
     updateWave(state.alphaWave, dt)
@@ -85,23 +100,22 @@ function love.update(dt)
         +
         getWaveIntensityAt(state.betaWave, state.betaWave.position) * betaAffinity)
         * dt
-end
 
-local function sendPulse(waveState, intensity, width)
-    table.insert(waveState.pulses, {
-        position = waveState.position + 4 * waveState.velocity,
-        intensity = intensity,
-        width = width,
-    })
+
+    local inboundChannel = love.thread.getChannel("inbound")
+    local command = inboundChannel:pop()
+    if command then
+        if command == "pulse_alpha" then
+            sendPulse(state.alphaWave, math.random(10, 30), math.random(1, 4))
+        elseif command == "pulse_beta" then
+            sendPulse(state.betaWave, math.random(10, 30), math.random(1, 4))
+        end
+    end
 end
 
 function love.keypressed(key)
     if key == "r" then
         love.event.quit("restart")
-    elseif key == "p" then
-        sendPulse(state.alphaWave, math.random(10, 30), math.random(1, 4))
-    elseif key == "o" then
-        sendPulse(state.betaWave, math.random(10, 30), math.random(1, 4))
     end
 end
 
@@ -137,11 +151,17 @@ local function alignedRectangle(x, y, width, height, anchorX, anchorY)
 end
 
 function buttons.pulse_alpha.onRelease()
-    sendPulse(state.alphaWave, math.random(10, 30), math.random(1, 4))
+    local outboundChannel = love.thread.getChannel("outbound")
+    local inboundChannel = love.thread.getChannel("inbound")
+    outboundChannel:push("pulse_alpha")
+    inboundChannel:push("pulse_alpha")
 end
 
 function buttons.pulse_beta.onRelease()
-    sendPulse(state.betaWave, math.random(10, 30), math.random(1, 4))
+    local outboundChannel = love.thread.getChannel("outbound")
+    local inboundChannel = love.thread.getChannel("inbound")
+    outboundChannel:push("pulse_beta")
+    inboundChannel:push("pulse_beta")
 end
 
 function buttons.affinity_alpha.onRelease()
@@ -250,4 +270,9 @@ function love.mousereleased(x, y, mouseButton)
             button.pressing = false
         end
     end
+end
+
+function love.quit()
+    local messageChannel = love.thread.getChannel("outbound")
+    messageChannel:push("close")
 end
