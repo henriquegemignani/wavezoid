@@ -1,80 +1,120 @@
 
 local constants = require("constants")
 local state = require("state")
-local waves = state.waves
-
-local function getConstant(name)
-    local v = constants[name]
-    if type(v) == "number" then
-        return v
-    else
-        return v.rangeMin + (v.rangeMax - v.rangeMin) * lovecat.number[v.namespace][name]
-    end
-end
 
 local function genGlobals()
     screenWidth, screenHeight = love.graphics.getDimensions()
     centerX = screenWidth / 2
     centerY = screenHeight / 2
-end
-
-local function createWave(x, y, duration, radius)
-    table.insert(waves, {
-        life = 0,
-        alpha = 255,
-        radius = 0,
-        x = x,
-        y = y,
-        duration = duration,
-        targetRadius = radius,
-    })
+    love.graphics.setFont(font)
 end
 
 function love.load()
-    lovecat.reload()
     require("lurker").postswap = genGlobals
+    font = love.graphics.setNewFont("DejaVuSansMono.ttf", 20)
     genGlobals()
 end
 
-local function waveUpdate(dt)
+local function updateWave(wave, dt)
+    wave.position = wave.position + wave.velocity * dt
+
+    local waveRightCorner = wave.position - screenWidth * constants.pixelSize
     local index = 1
-    while index <= #waves do
-        local wave = waves[index]
-        wave.life = wave.life + dt
-        if wave.life > wave.duration then
-            table.remove(waves, index)
+    while index <= #wave.pulses do
+        if wave.pulses[index].position < waveRightCorner then
+            table.remove(wave.pulses, index)
         else
-            local percentage = wave.life / wave.duration
-            wave.radius = percentage * wave.targetRadius
-            wave.alpha = 255 * (1 - percentage)
             index = index + 1
+        end
+    end
+
+
+    if wave.position > 4096 then
+        wave.position = wave.position - 4096
+        for _, pulse in ipairs(wave.pulses) do
+            pulse.position = pulse.position - 4096
         end
     end
 end
 
+local function getWaveIntensityAt(waveState, position)
+    local intensity = 0
+    for _, pulse in ipairs(waveState.pulses) do
+        local distance = math.abs(pulse.position - position)
+        if distance < pulse.width then
+            intensity = intensity + pulse.intensity * math.cos( (math.pi / 2) * (distance / pulse.width) )
+        end
+    end
+    return intensity
+end
+
 function love.update(dt)
     require("lurker").update()
-    lovecat.update(dt)
-    waveUpdate(dt)
+    updateWave(state.alphaWave, dt)
+    updateWave(state.betaWave, dt)
 
-    state.timeSinceLastPlayerWave = state.timeSinceLastPlayerWave + dt
-    local playerWaveInterval = getConstant("playerWaveInterval")
+    state.playerScore = state.playerScore +
+        (getWaveIntensityAt(state.alphaWave, state.alphaWave.position) * state.alphaAffinity
+        +
+        getWaveIntensityAt(state.betaWave, state.betaWave.position) * state.betaAffinity)
+        * dt
+end
 
-    if state.timeSinceLastPlayerWave >= playerWaveInterval then
-        state.timeSinceLastPlayerWave = state.timeSinceLastPlayerWave - playerWaveInterval
-        createWave(centerX, centerY, getConstant("playerWaveDuration"), getConstant("playerWaveRadius"))
-    end
+local function sendPulse(waveState, intensity, width)
+    table.insert(waveState.pulses, {
+        position = waveState.position + 4 * waveState.velocity,
+        intensity = intensity,
+        width = width,
+    })
 end
 
 function love.keypressed(key)
     if key == "r" then
         love.event.quit("restart")
+    elseif key == "p" then
+        sendPulse(state.alphaWave, math.random(10, 30), math.random(1, 4))
+    elseif key == "o" then
+        sendPulse(state.betaWave, math.random(10, 30), math.random(1, 4))
     end
 end
 
-function love.draw()
-    for _, wave in ipairs(waves) do
-        love.graphics.setColor(255, 255, 255, wave.alpha)
-        love.graphics.circle("line", wave.x, wave.y, wave.radius)
+local function renderWave(waveState, waveConfig)
+    love.graphics.setColor(unpack(waveConfig.color))
+
+    local pixelPosition = waveState.position + centerX * constants.pixelSize
+
+    for col = 0, screenWidth - 1 do
+        local intensity = getWaveIntensityAt(waveState, pixelPosition)
+        intensity = math.max(intensity, 0.5)
+
+        love.graphics.rectangle("fill",
+            col,
+            waveConfig.y - intensity,
+            1,
+            intensity * 2)
+
+        pixelPosition = pixelPosition - constants.pixelSize
     end
+end
+
+local function alignedPrint(msg, x, y, anchorX, anchorY)
+    local w = font:getWidth(msg)
+    local h = font:getHeight(msg)
+    love.graphics.print(msg, x - w * anchorX, y - h * anchorY)
+end
+
+function love.draw()
+    renderWave(state.alphaWave, constants.alphaWave)
+    alignedPrint("α", 5, constants.alphaWave.y, 0, 1)
+    alignedPrint(string.format("%d%%", state.alphaAffinity * 100), screenWidth - 5, constants.alphaWave.y, 1, 1)
+    renderWave(state.betaWave, constants.betaWave)
+    alignedPrint("β", 5, constants.betaWave.y, 0, 0)
+    alignedPrint(string.format("%d%%", state.betaAffinity * 100), screenWidth - 5, constants.betaWave.y, 1, 0)
+
+    love.graphics.setColor(unpack(constants.centerBarColor))
+    local centerBarWidth = constants.centerBarWidth
+    love.graphics.rectangle("fill", centerX - centerBarWidth / 2, 0, centerBarWidth, screenHeight)
+
+    love.graphics.setColor(255, 255, 255, 255)
+    alignedPrint(string.format("Score: %d", state.playerScore), centerX, screenHeight - 5, 0.5, 1.0)
 end

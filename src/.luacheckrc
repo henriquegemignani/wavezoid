@@ -6,5 +6,5 @@ globals = {
     "screenHeight",
     "centerX",
     "centerY",
-    "lovecat",
+    "font",
 }

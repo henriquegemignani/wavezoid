@@ -1,18 +1,18 @@
 
 return {
-    playerWaveInterval = {
-        namespace = "Player",
-        rangeMin = 0,
-        rangeMax = 20,
+    playerWaveInterval = 10,
+    playerWaveDuration = 20,
+    playerWaveRadius = 200,
+    centerBarWidth = 50,
+    centerBarColor = {255, 255, 255, 100},
+
+    pixelSize = 1/16,
+    alphaWave = {
+        y = 100,
+        color = {255, 0, 0, 255},
     },
-    playerWaveDuration = {
-        namespace = "Player",
-        rangeMin = 0,
-        rangeMax = 20,
-    },
-    playerWaveRadius = {
-        namespace = "Player",
-        rangeMin = 100,
-        rangeMax = 200,
+    betaWave = {
+        y = 250,
+        color = {0, 255, 0, 255},
     },
 }
