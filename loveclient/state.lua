@@ -1,8 +1,7 @@
 
 return {
     playerScore = 0,
-    alphaAffinity = 1,
-    betaAffinity = -1,
+    affinitySlider = 1,
 
     alphaWave = {
         position = 0,

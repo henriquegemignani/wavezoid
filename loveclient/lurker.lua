@@ -1,5 +1,5 @@
 --
--- lurker 
+-- lurker
 --
 -- Copyright (c) 2015 rxi
 --
@@ -99,7 +99,7 @@ end
 function lurker.onerror(e, nostacktrace)
   lurker.print("An error occurred; switching to error state")
   lurker.state = "error"
- 
+
   -- Release mouse
   local setgrab = love.mouse.setGrab or love.mouse.setGrabbed
   setgrab(false)
@@ -142,7 +142,7 @@ function lurker.onerror(e, nostacktrace)
     love.graphics.setBackgroundColor(lume.rgba(colors[1]))
     love.graphics.clear()
     drawtext("An error has occurred", pad, pad, colors[2])
-    drawtext("lurker", width - love.graphics.getFont():getWidth("lurker") - 
+    drawtext("lurker", width - love.graphics.getFont():getWidth("lurker") -
              pad, pad, colors[4])
     drawhr(pad + 32, colors[4], colors[5])
     drawtext("If you fix the problem and update the file the program will " ..
@@ -170,7 +170,7 @@ function lurker.exiterrorstate()
 end
 
 
-function lurker.update() 
+function lurker.update()
   if lurker.state == "init" then
     lurker.exitinitstate()
   end
@@ -207,7 +207,7 @@ end
 
 function lurker.hotswapfile(f)
   lurker.print("Hotswapping '{1}'...", {f})
-  if lurker.state == "error" then 
+  if lurker.state == "error" then
     lurker.exiterrorstate()
   end
   if lurker.preswap(f) then
@@ -219,7 +219,7 @@ function lurker.hotswapfile(f)
   local t, ok, err = lume.time(lume.hotswap, modname)
   if ok then
     lurker.print("Swapped '{1}' in {2} secs", {f, t})
-  else 
+  else
     lurker.print("Failed to swap '{1}' : {2}", {f, err})
     if not lurker.quiet and lurker.protected then
       lurker.lasterrorfile = f
