@@ -1,0 +1,43 @@
+local lovecat = {}
+
+
+-- namespaces:
+lovecat.number = {}
+lovecat.number.Player = {}
+
+
+-- saved parameters:
+lovecat.number.Player.playerWaveDuration = 0.55785837651123
+lovecat.number.Player.playerWaveInterval = 0.18825561312608
+lovecat.number.Player.playerWaveRadius = 0.75043177892919
+
+
+-- The following code tries to make the data file a drop-in
+-- replacement for lovecat.lua
+
+local function make_tostring(prefix, node)
+    setmetatable(node, {__tostring=function() return prefix end})
+    for ident,v in pairs(node) do
+        if prefix == '' or
+           (type(ident) == 'string' and
+            ('A'):byte() <= ident:byte() and
+            ('Z'):byte() >= ident:byte()) then
+            local new_prefix
+            if prefix == '' then
+                new_prefix = ident
+            else
+                new_prefix = prefix..'.'..ident
+            end
+            make_tostring(new_prefix, v)
+        end
+    end
+end
+make_tostring('', lovecat)
+
+lovecat.update       = function() end
+lovecat.watch_add    = function() end
+lovecat.watch_remove = function() end
+lovecat.set_default  = function() end
+lovecat.reload       = function() end
+
+return lovecat
