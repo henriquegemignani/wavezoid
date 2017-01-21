@@ -26,12 +26,14 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         self.commands_to_send.append(command)
 
     def handle(self):
-        print("New client!")
         MyTCPHandler.instances.add(self)
         self.commands_to_send = []
         self.received_data = b""
 
         self.ip = self.client_address[0]
+        print("{}: New client from port {}".format(
+            self.ip,
+            self.client_address[1]))
 
         try:
             while True:
@@ -42,8 +44,13 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     rlist, _, _ = select.select([self.request], [], [], 0.1)
                     if rlist:
                         new_data = self.request.recv(1024)
-                        print("{}: Received command: {}".format(self.ip, new_data))
+                        print("{}: Received command: {}".format(self.ip,
+                                                                new_data))
                         self.received_data += new_data
+
+                        if new_data == b"":
+                            # Receiving empty data is odd, terminating client
+                            return
 
                         while True:
                             line_break = self.received_data.find(b"\n")
