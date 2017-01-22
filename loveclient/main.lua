@@ -11,8 +11,8 @@ end
 local buttons = {}
 buttons.pulse_alpha     = genButton(2/8, 14/16, "ξα")
 buttons.pulse_beta      = genButton(3/8, 14/16, "ξβ")
-buttons.affinity_alpha  = genButton(5/8, 14/16, "ψ->α")
-buttons.affinity_beta   = genButton(6/8, 14/16, "ψ->β")
+buttons.affinity_alpha  = genButton(5/8, 14/16, "+ψα")
+buttons.affinity_beta   = genButton(6/8, 14/16, "+ψβ")
 
 local function genGlobals()
     screenWidth, screenHeight = love.graphics.getDimensions()
@@ -29,14 +29,28 @@ function love.load()
             return true
         end
     end
+    _G.smallFont = love.graphics.newFont("DejaVuSansMono.ttf", 15)
+    _G.bigFont = love.graphics.newFont("DejaVuSansMono.ttf", 25)
     font = love.graphics.setNewFont("DejaVuSansMono.ttf", 20)
     genGlobals()
     require("multiplayer"):start()
 end
 
+local function getWaveIntensityAt(waveState, position)
+    local intensity = 0
+    for _, pulse in ipairs(waveState.pulses) do
+        local distance = math.abs(pulse.position - position)
+        if distance < pulse.width then
+            intensity = intensity + pulse.intensity * math.cos( (math.pi / 2) * (distance / pulse.width) )
+        end
+    end
+    return intensity
+end
+
 local function updateWave(wave, dt)
     wave.velocity = 20
     wave.position = wave.position + wave.velocity * dt
+    wave.affinity = wave.affinity - wave.affinity * 0.1 * dt
 
     local waveRightCorner = wave.position - screenWidth * constants.pixelSize
     local index = 1
@@ -54,30 +68,10 @@ local function updateWave(wave, dt)
             pulse.position = pulse.position - 4096
         end
     end
-end
 
-local function getWaveIntensityAt(waveState, position)
-    local intensity = 0
-    for _, pulse in ipairs(waveState.pulses) do
-        local distance = math.abs(pulse.position - position)
-        if distance < pulse.width then
-            intensity = intensity + pulse.intensity * math.cos( (math.pi / 2) * (distance / pulse.width) )
-        end
-    end
-    return intensity
-end
-
-local function calculateAffinities()
-    if state.affinitySlider == 0 then
-        return 0.1, 0.1
-    else
-        local affinity = math.pow(1.2, math.abs(state.affinitySlider))
-        if state.affinitySlider > 0 then
-            return affinity, -0.8 * affinity
-        else
-            return -0.8 * affinity, affinity
-        end
-    end
+    -- Give points
+    state.playerScore = state.playerScore +
+        getWaveIntensityAt(wave, wave.position) * wave.affinity * dt
 end
 
 local function sendPulse(waveState, intensity, width)
@@ -97,14 +91,6 @@ function love.update(dt)
         state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
     end
 
-    local alphaAffinity, betaAffinity = calculateAffinities()
-
-    state.playerScore = state.playerScore +
-        (getWaveIntensityAt(state.alphaWave, state.alphaWave.position) * alphaAffinity
-        +
-        getWaveIntensityAt(state.betaWave, state.betaWave.position) * betaAffinity)
-        * dt
-
     local inboundChannel = love.thread.getChannel("inbound")
     local command = inboundChannel:pop()
     if command then
@@ -112,6 +98,16 @@ function love.update(dt)
             sendPulse(state.alphaWave, math.random(10, 30), math.random(1, 4))
         elseif command == "pulse_beta" then
             sendPulse(state.betaWave, math.random(10, 30), math.random(1, 4))
+        elseif command == "player_connect" then
+            state.currentPlayers = state.currentPlayers + 1
+        elseif command == "player_disconnect" then
+            state.currentPlayers = state.currentPlayers - 1
+        else
+            local com, arg = command:match("(%w+) (%w+)")
+            print(com, arg)
+            if com == "players" then
+                state.currentPlayers = arg
+            end
         end
     end
 end
@@ -141,9 +137,11 @@ local function renderWave(waveState, waveConfig)
     end
 end
 
-local function alignedPrint(msg, x, y, anchorX, anchorY)
-    local w = font:getWidth(msg)
-    local h = font:getHeight(msg)
+local function alignedPrint(msg, x, y, anchorX, anchorY, theFont)
+    theFont = theFont or font
+    local w = theFont:getWidth(msg)
+    local h = theFont:getHeight(msg)
+    love.graphics.setFont(theFont)
     love.graphics.print(msg, x - w * anchorX, y - h * anchorY)
 end
 
@@ -168,11 +166,11 @@ function buttons.pulse_beta.onRelease()
 end
 
 function buttons.affinity_alpha.onRelease()
-    state.affinitySlider = state.affinitySlider + 1
+    state.alphaWave.affinity = state.alphaWave.affinity + 1
 end
 
 function buttons.affinity_beta.onRelease()
-    state.affinitySlider = state.affinitySlider - 1
+    state.betaWave.affinity = state.betaWave.affinity + 1
 end
 
 local function buttonX(button)
@@ -224,15 +222,17 @@ local function isInsideButton(button, x, y)
 end
 
 function love.draw()
-    local alphaAffinity, betaAffinity = calculateAffinities()
-
+    -- Waves
     renderWave(state.alphaWave, constants.alphaWave)
     alignedPrint("α", 5, constants.alphaWave.y, 0, 1)
-    alignedPrint(string.format("%d%% ψ", alphaAffinity * 100), screenWidth - 5, constants.alphaWave.y, 1, 1)
+    alignedPrint(string.format("%d%% ψ", state.alphaWave.affinity * 100),
+                 screenWidth - 5, constants.alphaWave.y, 1, 1)
     renderWave(state.betaWave, constants.betaWave)
     alignedPrint("β", 5, constants.betaWave.y, 0, 0)
-    alignedPrint(string.format("%d%% ψ", betaAffinity * 100), screenWidth - 5, constants.betaWave.y, 1, 0)
+    alignedPrint(string.format("%d%% ψ", state.betaWave.affinity * 100),
+                 screenWidth - 5, constants.betaWave.y, 1, 0)
 
+    -- Hot area
     love.graphics.setColor(unpack(constants.centerBarColor))
     local centerBarWidth = constants.centerBarWidth
     alignedRectangle(
@@ -241,12 +241,16 @@ function love.draw()
         0.5, 0.5)
 
     love.graphics.setColor(255, 255, 255, 255)
-    alignedPrint(string.format("Score: %d", state.playerScore), centerX, 5, 0.5, 0.0)
+    alignedPrint(string.format("Score: %d", state.playerScore),
+                 centerX, 5, 0.5, 0.0,
+                 _G.bigFont)
 
+    -- Action buttons
     for _, button in pairs(buttons) do
         drawButton(button)
     end
 
+    -- Cooldown display
     local cooldownRemaining = state.actionCooldownTimer / constants.actionCooldown
     local middleAngle = (1 - cooldownRemaining) * math.pi * 2 - math.pi/2
     love.graphics.setColor(100, 100, 100,
@@ -256,6 +260,16 @@ function love.draw()
     love.graphics.arc("fill", centerX, screenHeight * 14/16, 30, -math.pi/2, middleAngle)
     love.graphics.setColor(255, 0, 0, 255)
     love.graphics.arc("fill", centerX, screenHeight * 14/16, 30, middleAngle, math.pi * 3/2)
+
+    -- Player count
+    if type(state.currentPlayers) == "boolean" then
+        love.graphics.setColor(255, 0, 0, 255)
+        alignedPrint("Offline", 5, screenHeight - 5, 0, 1, _G.smallFont)
+    else
+        love.graphics.setColor(255, 255, 0, 255)
+        alignedPrint(string.format("Current Players: %d", state.currentPlayers),
+                     5, screenHeight - 5, 0, 1, _G.smallFont)
+    end
 end
 
 function love.mousemoved(x, y)

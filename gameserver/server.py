@@ -36,6 +36,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.client_address[1]))
 
         try:
+            self.receive_command(b"player_connect")
+            self.send_command("num_players {}".format(
+                len(MyTCPHandler.instances)).encode("UTF-8"))
+
             while True:
                 if self.commands_to_send:
                     self.request.sendall(self.commands_to_send.pop(0) + b"\n")
@@ -66,6 +70,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                                 self.receive_command(command)
 
         finally:
+            self.receive_command(b"player_disconnect")
             MyTCPHandler.instances.remove(self)
 
 
