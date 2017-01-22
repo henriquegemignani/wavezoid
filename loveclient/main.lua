@@ -90,6 +90,10 @@ local function genGlobals()
     print("GEN GLOBALS")
 end
 
+function love.resize()
+    genGlobals()
+end
+
 function love.load()
     require("lurker").postswap = genGlobals
     require("lurker").preswap = function(name)
@@ -132,6 +136,10 @@ local function spawnScoreEffect(radius, x, y, color, onComplete)
     })
 end
 
+local function waveY(waveConfig)
+    return waveConfig.y * screenHeight
+end
+
 local function waveColorAt(waveConfig, position)
     -- -1 to 1
     -- -0.25 to 0.25
@@ -142,10 +150,10 @@ end
 
 local function updateWave(wave, dt)
     wave.position = wave.position + wave.velocity * dt
-    wave.affinity = wave.affinity - wave.affinity * 0.1 * dt
+    wave.affinity = wave.affinity - wave.affinity * 0.05 * dt
 
     local deltaVelocity = (constants.targetVelocity - wave.velocity)
-    wave.velocity = wave.velocity + deltaVelocity * 0.1 * dt
+    wave.velocity = wave.velocity + deltaVelocity * 0.05 * dt
 
     if wave.position > 4096 then
         wave.position = wave.position - 4096
@@ -170,10 +178,11 @@ local function updateWave(wave, dt)
     if math.abs(points) > 0.1 * dt then
         spawnScoreEffect(math.log(math.abs(points)),
             centerX,
-            constants[wave.name].y + math.random(-8, 8),
+            waveY(constants[wave.name]) + math.random(-8, 8),
             {waveColorAt(constants[wave.name], wave.position)},
             function()
                 state.playerScore = state.playerScore + points
+                state.pointsRecently = state.pointsRecently + points
             end)
     end
 end
@@ -266,6 +275,16 @@ function love.update(dt)
         state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
     end
 
+    state.pointsRecentlyTimer = state.pointsRecentlyTimer + dt
+    if state.pointsRecentlyTimer > constants.pointsRecentlyInterval then
+        if math.abs(state.pointsRecently) > 1 then
+            local outbound = love.thread.getChannel("outbound")
+            outbound:push(string.format("player_points %d", state.pointsRecently))
+        end
+        state.pointsRecently = 0
+        state.pointsRecentlyTimer = 0
+    end
+
     local inboundChannel = love.thread.getChannel("inbound")
     local command = inboundChannel:pop()
     if command then
@@ -280,11 +299,11 @@ function love.update(dt)
             sendPulse(state.betaWave, tonumber(arg1), tonumber(arg2))
         elseif com == "alpha_velocity" then
             state.alphaWave.velocity = state.alphaWave.velocity + tonumber(arg1)
-            spawnTextEffect("+v", 40, constants.alphaWave.y - 10,
+            spawnTextEffect("+v", 40, waveY(constants.alphaWave) - 10,
                             {hsvToRgb(constants.alphaWave.hue, 1, 1, 1)})
         elseif com == "beta_velocity" then
             state.betaWave.velocity = state.betaWave.velocity + tonumber(arg1)
-            spawnTextEffect("+v", 40, constants.betaWave.y - 10,
+            spawnTextEffect("+v", 40, waveY(constants.betaWave) - 10,
                             {hsvToRgb(constants.betaWave.hue, 1, 1, 1)})
         end
     end
@@ -299,8 +318,10 @@ end
 local function renderWave(waveState, waveConfig)
     local pixelPosition = waveState.position + centerX * constants.pixelSize
 
+    local y = waveY(waveConfig)
+
     love.graphics.setColor(waveColorAt(waveConfig, waveState.position))
-    love.graphics.circle("fill", centerX, waveConfig.y, constants.centerCircleSize)
+    love.graphics.circle("fill", centerX, y, constants.centerCircleSize)
 
     for col = 0, screenWidth - 1 do
         love.graphics.setColor(waveColorAt(waveConfig, pixelPosition))
@@ -308,7 +329,7 @@ local function renderWave(waveState, waveConfig)
         local intensity = getWaveIntensityAt(waveState, pixelPosition)
         love.graphics.rectangle("fill",
             col,
-            waveConfig.y - intensity,
+            y - intensity,
             1,
             1)
 
@@ -437,13 +458,13 @@ end
 function love.draw()
     -- Waves
     renderWave(state.alphaWave, constants.alphaWave)
-    alignedPrint("α", 5, constants.alphaWave.y, 0, 1)
+    alignedPrint("α", 5, waveY(constants.alphaWave), 0, 1)
     alignedPrint(string.format("%d%% ψ", state.alphaWave.affinity * 100),
-                 screenWidth - 5, constants.alphaWave.y, 1, 1)
+                 screenWidth - 5, waveY(constants.alphaWave), 1, 1)
     renderWave(state.betaWave, constants.betaWave)
-    alignedPrint("β", 5, constants.betaWave.y, 0, 0)
+    alignedPrint("β", 5, waveY(constants.betaWave), 0, 0)
     alignedPrint(string.format("%d%% ψ", state.betaWave.affinity * 100),
-                 screenWidth - 5, constants.betaWave.y, 1, 0)
+                 screenWidth - 5, waveY(constants.betaWave), 1, 0)
 
     -- Score
     love.graphics.setColor(255, 255, 255, 255)
@@ -476,6 +497,8 @@ function love.draw()
         alignedPrint(string.format("Current Players: %d", state.currentPlayers),
                      5, screenHeight - 5, 0, 1, _G.smallFont)
     end
+        alignedPrint(string.format("FPS: %d", love.timer.getFPS()),
+                     screenWidth - 5, screenHeight - 5, 1, 1, _G.smallFont)
 
     -- Particles
     for _, particle in ipairs(state.particles) do
@@ -506,6 +529,7 @@ function love.mousepressed(x, y, mouseButton)
         for _, button in pairs(buttons) do
             if state.actionCooldownTimer <= 0 and isInsideButton(button, x, y) then
                 button.pressing = true
+                break
             end
         end
     end

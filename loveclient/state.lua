@@ -3,6 +3,8 @@ return {
     playerScore = 0,
     currentPlayers = false,
     actionCooldownTimer = 0,
+    pointsRecently = 0,
+    pointsRecentlyTimer = 0,
 
     alphaWave = {
         name = "alphaWave",

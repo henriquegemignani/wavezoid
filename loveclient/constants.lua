@@ -12,14 +12,16 @@ return {
     pulseMinWidth = 1,
     pulseMaxWidth = 4,
 
+    pointsRecentlyInterval = 5,
+
     pixelSize = 1/16,
     alphaWave = {
-        y = 125,
+        y = 5/16,
         hue = 1,
         saturationPulseOffset = 0,
     },
     betaWave = {
-        y = 280,
+        y = 9/16,
         hue = 0.6,
         saturationPulseOffset = 0.5,
     },
