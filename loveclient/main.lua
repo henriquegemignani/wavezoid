@@ -297,4 +297,5 @@ end
 function love.quit()
     local messageChannel = love.thread.getChannel("outbound")
     messageChannel:push("close")
+    require("multiplayer"):wait()
 end
