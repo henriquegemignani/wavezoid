@@ -2,6 +2,41 @@
 local constants = require("constants")
 local state = require("state")
 
+--[[
+ * Converts an HSV color value to RGB. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSV_color_space.
+ * Assumes h, s, and v are contained in the set [0, 1] and
+ * returns r, g, and b in the set [0, 255].
+ *
+ * @param   Number  h       The hue
+ * @param   Number  s       The saturation
+ * @param   Number  v       The value
+ * @return  Array           The RGB representation
+ *
+ * Credits: https://github.com/EmmanuelOga/columns/blob/master/utils/color.lua
+]]
+local function hsvToRgb(h, s, v, a)
+  local r, g, b
+
+  local i = math.floor(h * 6);
+  local f = h * 6 - i;
+  local p = v * (1 - s);
+  local q = v * (1 - f * s);
+  local t = v * (1 - (1 - f) * s);
+
+  i = i % 6
+
+  if i == 0 then r, g, b = v, t, p
+  elseif i == 1 then r, g, b = q, v, p
+  elseif i == 2 then r, g, b = p, v, t
+  elseif i == 3 then r, g, b = p, q, v
+  elseif i == 4 then r, g, b = t, p, v
+  elseif i == 5 then r, g, b = v, p, q
+  end
+
+  return r * 255, g * 255, b * 255, a * 255
+end
+
 local function genButton(x, y, label)
     return { x = x, y = y, label = label,
              width = 50, height = 50,
@@ -47,24 +82,24 @@ local function getWaveIntensityAt(waveState, position)
     return intensity
 end
 
-local function spawnScoreEffect(count, x, y, color)
+local function spawnScoreEffect(radius, x, y, color, onComplete)
     table.insert(state.particles, {
         fromX = x,
         fromY = y,
-        toX = centerX,
+        toX = x + math.random(-40, 40),
         toY = 30,
         color = color,
-        radius = math.sqrt(count),
+        radius = radius,
         x = x,
         y = y,
-        midWayX = centerX + math.random(-200, 200),
+        midWayX = x + math.random(-100, 100),
         time = 0,
-        duration = 1,
+        duration = 0.5 + math.random(),
+        onComplete = onComplete,
     })
 end
 
 local function updateWave(wave, dt)
-    wave.velocity = 20
     wave.position = wave.position + wave.velocity * dt
     wave.affinity = wave.affinity - wave.affinity * 0.1 * dt
 
@@ -87,16 +122,15 @@ local function updateWave(wave, dt)
 
     -- Give points
     local points = getWaveIntensityAt(wave, wave.position) * wave.affinity * dt
-    state.playerScore = state.playerScore + points
 
-    for _, pulse in ipairs(wave.pulses) do
-        local distance = (wave.position - pulse.position) / constants.pixelSize
-        if math.abs(distance) < constants.centerBarWidth / 2 then
-            spawnScoreEffect(pulse.intensity * wave.affinity,
-                centerX + distance + math.random(-2, 2),
-                constants[wave.name].y + math.random(-2, 2),
-                constants[wave.name].color)
-        end
+    if points > 0.1 * dt then
+        spawnScoreEffect(math.log(points),
+            centerX,
+            constants[wave.name].y + math.random(-8, 8),
+            constants[wave.name].color,
+            function()
+                state.playerScore = state.playerScore + points
+            end)
     end
 end
 
@@ -113,7 +147,6 @@ local function updateParticle(particle, dt)
         particle.x = (particle.toX - particle.midWayX)
                        * math.pow(otherPercent - 1, 2) + particle.midWayX
     end
-    particle.x = particle.fromX + (1 - math.pow(percent - 0.5, 2)) * 50
     particle.y = particle.fromY + (particle.toY - particle.fromY) * percent
 end
 
@@ -134,6 +167,7 @@ local function updateParticles(particles, dt)
             index = index + 1
         else
             table.remove(particles, index)
+            particle.onComplete()
         end
     end
 end
@@ -147,6 +181,8 @@ function love.update(dt)
     if state.actionCooldownTimer > 0 then
         state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
     end
+
+    state.middleBarHue = (state.middleBarHue + 0.25 * dt) % 1
 
     local inboundChannel = love.thread.getChannel("inbound")
     local command = inboundChannel:pop()
@@ -284,6 +320,20 @@ local function isInsideButton(button, x, y)
 end
 
 function love.draw()
+    -- Hot area
+    love.graphics.setColor(hsvToRgb(state.middleBarHue, 0.75, 0.75, 1))
+    local centerBarSize = constants.centerBarSize
+
+    alignedRectangle(
+        centerX, constants.alphaWave.y,
+        centerBarSize, centerBarSize,
+        0.5, 0.5)
+    alignedRectangle(
+        centerX, constants.betaWave.y,
+        centerBarSize, centerBarSize,
+        0.5, 0.5)
+
+
     -- Waves
     renderWave(state.alphaWave, constants.alphaWave)
     alignedPrint("α", 5, constants.alphaWave.y, 0, 1)
@@ -294,14 +344,7 @@ function love.draw()
     alignedPrint(string.format("%d%% ψ", state.betaWave.affinity * 100),
                  screenWidth - 5, constants.betaWave.y, 1, 0)
 
-    -- Hot area
-    love.graphics.setColor(unpack(constants.centerBarColor))
-    local centerBarWidth = constants.centerBarWidth
-    alignedRectangle(
-        centerX, (constants.alphaWave.y + constants.betaWave.y) / 2,
-        centerBarWidth, constants.betaWave.y - constants.alphaWave.y + 80,
-        0.5, 0.5)
-
+    -- Score
     love.graphics.setColor(255, 255, 255, 255)
     alignedPrint(string.format("Score: %d", state.playerScore),
                  centerX, 5, 0.5, 0.0,

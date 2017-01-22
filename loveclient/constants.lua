@@ -3,8 +3,7 @@ return {
     playerWaveInterval = 10,
     playerWaveDuration = 20,
     playerWaveRadius = 200,
-    centerBarWidth = 50,
-    centerBarColor = {255, 255, 255, 100},
+    centerBarSize = 20,
     actionCooldown = 1.5,
 
     pixelSize = 1/16,

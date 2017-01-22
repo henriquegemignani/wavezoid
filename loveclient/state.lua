@@ -2,6 +2,7 @@
 return {
     playerScore = 0,
     currentPlayers = false,
+    middleBarHue = 0,
     actionCooldownTimer = 0,
 
     alphaWave = {
