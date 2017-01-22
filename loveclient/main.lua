@@ -47,6 +47,9 @@ local function getWaveIntensityAt(waveState, position)
     return intensity
 end
 
+local function spawnScoreEffect(count, x, y, color)
+end
+
 local function updateWave(wave, dt)
     wave.velocity = 20
     wave.position = wave.position + wave.velocity * dt
@@ -70,8 +73,12 @@ local function updateWave(wave, dt)
     end
 
     -- Give points
-    state.playerScore = state.playerScore +
-        getWaveIntensityAt(wave, wave.position) * wave.affinity * dt
+    local points = getWaveIntensityAt(wave, wave.position) * wave.affinity * dt
+    state.playerScore = state.playerScore + points
+    if points > dt then
+        -- Spawn effect!
+        spawnScoreEffect(points, centerX, constants[wave.name].y, constants[wave.name].color)
+    end
 end
 
 local function sendPulse(waveState, intensity, width)

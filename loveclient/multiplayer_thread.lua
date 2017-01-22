@@ -13,16 +13,16 @@ print("connecting client", result)
 
 local outboundChannel = love.thread.getChannel("outbound")
 local inboundChannel = love.thread.getChannel("inbound")
-while true do
+
+local running = true
+
+while running do
     local tosend = outboundChannel:pop()
     if tosend then
-        if tosend == "close" then
-            break
-        else
-            print("sending to socket: " .. tosend)
-            client:send(tosend .. "\n")
-            print("sent!")
-        end
+        print("sending to socket: " .. tosend)
+        client:send(tosend .. "\n")
+        print("sent!")
+        running = tosend ~= "close"
     else
         local canRead = socket.select({client}, {}, 0.15)
         if canRead[1] then

@@ -65,6 +65,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                                 line_break + 1:]
 
                             if command == b"quit":
+                                print("{}: Received quit!".format(self.ip))
                                 return
                             else:
                                 self.receive_command(command)
