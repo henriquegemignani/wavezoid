@@ -11,7 +11,6 @@ return {
     pulseMaxIntesity = 10,
     pulseMinWidth = 1,
     pulseMaxWidth = 4,
-    pulseNegativeChance = 0.3,
 
     pixelSize = 1/16,
     alphaWave = {
@@ -22,6 +21,6 @@ return {
     betaWave = {
         y = 280,
         color = {0, 255, 0, 255},
-        hue = 0.3,
+        hue = 0.6,
     },
 }

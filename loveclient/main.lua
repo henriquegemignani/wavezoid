@@ -37,10 +37,10 @@ local function hsvToRgb(h, s, v, a)
   return r * 255, g * 255, b * 255, a * 255
 end
 
-local function genButton(x, y, label, saturation, hue)
-    return { x = x, y = y, label = label,
+local function genButton(x, label, hue)
+    return { x = x, y = 14/16, label = label,
              width = 50, height = 50,
-             saturation = saturation or 0,
+             saturation = 0.8,
              hue = hue or 1,
              onRelease = function() end, }
 end
@@ -71,14 +71,16 @@ local function createDrawPulse(intensity)
 end
 
 local buttons = {}
-buttons.pulse_alpha_plus  = genButton(2/16, 14/16, createDrawPulse(10), 0.8, 1)
-buttons.pulse_alpha_minus = genButton(3.5/16, 14/16, createDrawPulse(-10), 0.8, 1)
-buttons.pulse_beta_plus   = genButton(5/16, 14/16, createDrawPulse(10), 0.8, 0.3)
-buttons.pulse_beta_minus  = genButton(6.5/16, 14/16, createDrawPulse(-10), 0.8, 0.3)
-buttons.affinity_alpha  = genButton(9.5/16, 14/16, "+ψ", 0.8, 1)
-buttons.velocity_alpha  = genButton(11/16, 14/16, "+v", 0.8, 1)
-buttons.affinity_beta   = genButton(12.5/16, 14/16, "+ψ", 0.8, 0.3)
-buttons.velocity_beta   = genButton(14/16, 14/16, "+v", 0.8, 0.3)
+local alphaHue = constants.alphaWave.hue
+local betaHue  = constants.betaWave.hue
+buttons.pulse_alpha_plus  = genButton( 2.0/16, createDrawPulse( 10), alphaHue)
+buttons.pulse_alpha_minus = genButton( 3.5/16, createDrawPulse(-10), alphaHue)
+buttons.pulse_beta_plus   = genButton( 5.0/16, createDrawPulse( 10), betaHue)
+buttons.pulse_beta_minus  = genButton( 6.5/16, createDrawPulse(-10), betaHue)
+buttons.affinity_alpha    = genButton( 9.5/16, "+ψ", alphaHue)
+buttons.velocity_alpha    = genButton(11.0/16, "+v", alphaHue)
+buttons.affinity_beta     = genButton(12.5/16, "+ψ", betaHue)
+buttons.velocity_beta     = genButton(14.0/16, "+v", betaHue)
 
 local function genGlobals()
     screenWidth, screenHeight = love.graphics.getDimensions()
