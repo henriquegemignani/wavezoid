@@ -45,7 +45,15 @@ local function genButton(x, label, hue)
              onRelease = function() end, }
 end
 
-local function drawPulse(intensity, x, y)
+local function alignedPrint(msg, x, y, anchorX, anchorY, theFont)
+    theFont = theFont or font
+    local w = theFont:getWidth(msg)
+    local h = theFont:getHeight(msg)
+    love.graphics.setFont(theFont)
+    love.graphics.print(msg, x - w * anchorX, y - h * anchorY)
+end
+
+local function drawPulse(intensity, letter, x, y)
     local lineWidth = 10
     local pulseWidth = 10
     for col = -lineWidth * 2, lineWidth * 2 do
@@ -58,29 +66,30 @@ local function drawPulse(intensity, x, y)
 
         love.graphics.rectangle("fill",
             x + col / 2,
-            y - pointPos + intensity / 2,
+            y - pointPos + intensity / 2 - 8,
             1,
             1)
     end
+    alignedPrint(letter, x, y + 10, 0.5, 0.5, _G.smallFont)
 end
 
-local function createDrawPulse(intensity)
+local function createDrawPulse(intensity, letter)
     return function(...)
-        return drawPulse(intensity, ...)
+        return drawPulse(intensity, letter, ...)
     end
 end
 
 local buttons = {}
 local alphaHue = constants.alphaWave.hue
 local betaHue  = constants.betaWave.hue
-buttons.pulse_alpha_plus  = genButton( 2.0/16, createDrawPulse( 10), alphaHue)
-buttons.pulse_alpha_minus = genButton( 3.5/16, createDrawPulse(-10), alphaHue)
-buttons.pulse_beta_plus   = genButton( 5.0/16, createDrawPulse( 10), betaHue)
-buttons.pulse_beta_minus  = genButton( 6.5/16, createDrawPulse(-10), betaHue)
-buttons.affinity_alpha    = genButton( 9.5/16, "+ψ", alphaHue)
-buttons.velocity_alpha    = genButton(11.0/16, "+v", alphaHue)
-buttons.affinity_beta     = genButton(12.5/16, "+ψ", betaHue)
-buttons.velocity_beta     = genButton(14.0/16, "+v", betaHue)
+buttons.pulse_alpha_plus  = genButton( 2.0/16, createDrawPulse( 10, "α"), alphaHue)
+buttons.pulse_alpha_minus = genButton( 3.5/16, createDrawPulse(-10, "α"), alphaHue)
+buttons.pulse_beta_plus   = genButton( 5.0/16, createDrawPulse( 10, "β"), betaHue)
+buttons.pulse_beta_minus  = genButton( 6.5/16, createDrawPulse(-10, "β"), betaHue)
+buttons.affinity_alpha    = genButton( 9.5/16, "+ψα", alphaHue)
+buttons.velocity_alpha    = genButton(11.0/16, "+vα", alphaHue)
+buttons.affinity_beta     = genButton(12.5/16, "+ψβ", betaHue)
+buttons.velocity_beta     = genButton(14.0/16, "+vβ", betaHue)
 
 local function genGlobals()
     screenWidth, screenHeight = love.graphics.getDimensions()
@@ -354,14 +363,6 @@ local function renderWave(waveState, waveConfig)
 
         pixelPosition = pixelPosition - constants.pixelSize
     end
-end
-
-local function alignedPrint(msg, x, y, anchorX, anchorY, theFont)
-    theFont = theFont or font
-    local w = theFont:getWidth(msg)
-    local h = theFont:getHeight(msg)
-    love.graphics.setFont(theFont)
-    love.graphics.print(msg, x - w * anchorX, y - h * anchorY)
 end
 
 local function alignedRectangle(x, y, width, height, anchorX, anchorY)
