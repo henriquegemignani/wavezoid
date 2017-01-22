@@ -76,7 +76,9 @@ buttons.pulse_alpha_minus = genButton(3.5/16, 14/16, createDrawPulse(-10), 0.8, 
 buttons.pulse_beta_plus   = genButton(5/16, 14/16, createDrawPulse(10), 0.8, 0.3)
 buttons.pulse_beta_minus  = genButton(6.5/16, 14/16, createDrawPulse(-10), 0.8, 0.3)
 buttons.affinity_alpha  = genButton(9.5/16, 14/16, "+ψ", 0.8, 1)
-buttons.affinity_beta   = genButton(11/16, 14/16, "+ψ", 0.8, 0.3)
+buttons.velocity_alpha  = genButton(11/16, 14/16, "+v", 0.8, 1)
+buttons.affinity_beta   = genButton(12.5/16, 14/16, "+ψ", 0.8, 0.3)
+buttons.velocity_beta   = genButton(14/16, 14/16, "+v", 0.8, 0.3)
 
 local function genGlobals()
     screenWidth, screenHeight = love.graphics.getDimensions()
@@ -228,6 +230,10 @@ function love.update(dt)
             sendPulse(state.alphaWave, tonumber(arg1), tonumber(arg2))
         elseif com == "pulse_beta" then
             sendPulse(state.betaWave, tonumber(arg1), tonumber(arg2))
+        elseif com == "alpha_velocity" then
+            state.alphaWave.velocity = state.alphaWave.velocity + tonumber(arg1)
+        elseif com == "beta_velocity" then
+            state.betaWave.velocity = state.betaWave.velocity + tonumber(arg1)
         end
     end
 end
@@ -239,11 +245,14 @@ function love.keypressed(key)
 end
 
 local function renderWave(waveState, waveConfig)
-    love.graphics.setColor(unpack(waveConfig.color))
-
     local pixelPosition = waveState.position + centerX * constants.pixelSize
 
     for col = 0, screenWidth - 1 do
+        -- -1 to 1
+        -- -0.25 to 0.25
+        local saturation = 0.75 + math.sin(pixelPosition / 2) / 4
+        love.graphics.setColor(hsvToRgb(waveConfig.hue, saturation, 1, 1))
+
         local intensity = getWaveIntensityAt(waveState, pixelPosition)
 
         love.graphics.rectangle("fill",
@@ -306,8 +315,16 @@ function buttons.affinity_alpha.onRelease()
     state.alphaWave.affinity = state.alphaWave.affinity + 1
 end
 
+function buttons.velocity_alpha.onRelease()
+    sendCommandToBoth(string.format("alpha_velocity %d", 5))
+end
+
 function buttons.affinity_beta.onRelease()
     state.betaWave.affinity = state.betaWave.affinity + 1
+end
+
+function buttons.velocity_beta.onRelease()
+    sendCommandToBoth(string.format("beta_velocity %d", 5))
 end
 
 local function buttonX(button)

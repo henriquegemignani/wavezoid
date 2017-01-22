@@ -17,9 +17,11 @@ return {
     alphaWave = {
         y = 125,
         color = {255, 0, 0, 255},
+        hue = 1,
     },
     betaWave = {
         y = 280,
         color = {0, 255, 0, 255},
+        hue = 0.3,
     },
 }
