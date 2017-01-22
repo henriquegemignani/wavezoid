@@ -123,8 +123,8 @@ local function updateWave(wave, dt)
     -- Give points
     local points = getWaveIntensityAt(wave, wave.position) * wave.affinity * dt
 
-    if points > 0.1 * dt then
-        spawnScoreEffect(math.log(points),
+    if math.abs(points) > 0.1 * dt then
+        spawnScoreEffect(math.log(math.abs(points)),
             centerX,
             constants[wave.name].y + math.random(-8, 8),
             constants[wave.name].color,
@@ -187,20 +187,15 @@ function love.update(dt)
     local inboundChannel = love.thread.getChannel("inbound")
     local command = inboundChannel:pop()
     if command then
-        if command == "pulse_alpha" then
-            sendPulse(state.alphaWave, math.random(10, 30), math.random(1, 4))
-        elseif command == "pulse_beta" then
-            sendPulse(state.betaWave, math.random(10, 30), math.random(1, 4))
-        elseif command == "player_connect" then
-            state.currentPlayers = state.currentPlayers + 1
-        elseif command == "player_disconnect" then
-            state.currentPlayers = state.currentPlayers - 1
-        else
-            local com, arg = command:match("(%w+) (%w+)")
-            print(com, arg)
-            if com == "players" then
-                state.currentPlayers = arg
-            end
+        print("received command: '" .. command .. "'")
+        local com, arg1, arg2 = command:match("^([%w_]+) ([%w%-]+) ?([%w%-]*)")
+        print("Parsed:", com, arg1, arg2)
+        if com == "num_players" then
+            state.currentPlayers = arg1
+        elseif com == "pulse_alpha" then
+            sendPulse(state.alphaWave, tonumber(arg1), tonumber(arg2))
+        elseif com == "pulse_beta" then
+            sendPulse(state.betaWave, tonumber(arg1), tonumber(arg2))
         end
     end
 end
@@ -218,13 +213,12 @@ local function renderWave(waveState, waveConfig)
 
     for col = 0, screenWidth - 1 do
         local intensity = getWaveIntensityAt(waveState, pixelPosition)
-        intensity = math.max(intensity, 0.5)
 
         love.graphics.rectangle("fill",
             col,
             waveConfig.y - intensity,
             1,
-            intensity * 2)
+            1)
 
         pixelPosition = pixelPosition - constants.pixelSize
     end
@@ -244,18 +238,32 @@ local function alignedRectangle(x, y, width, height, anchorX, anchorY)
         width, height)
 end
 
-function buttons.pulse_alpha.onRelease()
+local function sendCommandToBoth(command)
     local outboundChannel = love.thread.getChannel("outbound")
     local inboundChannel = love.thread.getChannel("inbound")
-    outboundChannel:push("pulse_alpha")
-    inboundChannel:push("pulse_alpha")
+    outboundChannel:push(command)
+    inboundChannel:push(command)
+end
+
+local function buildPulseArgs()
+    local intensity = math.random(constants.pulseMinIntesity,
+                                  constants.pulseMaxIntesity)
+    if math.random() < constants.pulseNegativeChance then
+        intensity = -intensity
+    end
+
+    local width = math.random(constants.pulseMinWidth,
+                              constants.pulseMaxWidth)
+
+    return intensity, width
+end
+
+function buttons.pulse_alpha.onRelease()
+    sendCommandToBoth(string.format("pulse_alpha %d %d", buildPulseArgs()))
 end
 
 function buttons.pulse_beta.onRelease()
-    local outboundChannel = love.thread.getChannel("outbound")
-    local inboundChannel = love.thread.getChannel("inbound")
-    outboundChannel:push("pulse_beta")
-    inboundChannel:push("pulse_beta")
+    sendCommandToBoth(string.format("pulse_beta %d %d", buildPulseArgs()))
 end
 
 function buttons.affinity_alpha.onRelease()

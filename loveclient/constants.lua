@@ -6,6 +6,12 @@ return {
     centerBarSize = 20,
     actionCooldown = 1.5,
 
+    pulseMinIntesity = 10,
+    pulseMaxIntesity = 10,
+    pulseMinWidth = 1,
+    pulseMaxWidth = 4,
+    pulseNegativeChance = 0.3,
+
     pixelSize = 1/16,
     alphaWave = {
         y = 125,

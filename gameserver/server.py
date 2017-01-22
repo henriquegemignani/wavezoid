@@ -1,5 +1,4 @@
 import socketserver
-import time
 import select
 
 
@@ -14,10 +13,15 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     client.
     """
 
-    def receive_command(self, command):
+    @classmethod
+    def num_players_command(cls):
+        return "num_players {}".format(
+                len(MyTCPHandler.instances)).encode("UTF-8")
+
+    def receive_command(self, command, self_included=False):
         if command == b"pulse_alpha" or b"pulse_beta":
             for instance in MyTCPHandler.instances:
-                if instance != self:
+                if instance != self or self_included:
                     instance.send_command(command)
         else:
             print("{}: Unknown command received: {}".format(self.ip, command))
@@ -36,9 +40,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.client_address[1]))
 
         try:
-            self.receive_command(b"player_connect")
-            self.send_command("num_players {}".format(
-                len(MyTCPHandler.instances)).encode("UTF-8"))
+            self.receive_command(MyTCPHandler.num_players_command(),
+                                 self_included=True)
 
             while True:
                 if self.commands_to_send:
@@ -71,8 +74,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                                 self.receive_command(command)
 
         finally:
-            self.receive_command(b"player_disconnect")
             MyTCPHandler.instances.remove(self)
+            self.receive_command(MyTCPHandler.num_players_command())
 
 
 def main():
