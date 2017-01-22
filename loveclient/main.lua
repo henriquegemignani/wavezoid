@@ -211,20 +211,6 @@ local function sendPulse(waveState, intensity, width)
     })
 end
 
-local function updateParticles(particles, dt)
-    local index = 1
-    while index <= #particles do
-        local particle = particles[index]
-        if particle.time < particle.duration then
-            updateParticle(particle, dt)
-            index = index + 1
-        else
-            table.remove(particles, index)
-            particle.onComplete()
-        end
-    end
-end
-
 local function updateTextEffect(textEffect, dt)
     textEffect.time = textEffect.time + dt
     local percent = textEffect.time / textEffect.duration
@@ -232,20 +218,6 @@ local function updateTextEffect(textEffect, dt)
     textEffect.x = textEffect.fromX + (textEffect.toX - textEffect.fromX) * percent
     textEffect.y = textEffect.fromY + (textEffect.toY - textEffect.fromY) * percent * (percent - 2)
     textEffect.color[4] = 255 * (1 - math.pow(percent, 2))
-end
-
-local function updateTextEffects(textEffects, dt)
-    local index = 1
-    while index <= #textEffects do
-        local textEffect = textEffects[index]
-        if textEffect.time < textEffect.duration then
-            updateTextEffect(textEffect, dt)
-            index = index + 1
-        else
-            table.remove(textEffects, index)
-            textEffect.onComplete()
-        end
-    end
 end
 
 local function spawnTextEffect(text, x, y, color)
@@ -264,12 +236,56 @@ local function spawnTextEffect(text, x, y, color)
     })
 end
 
+local function spawnOtherPlayerScoreEffect(score)
+    local scoreTransform = math.log(math.abs(score) + 1)
+    table.insert(state.playerScoreEffects, {
+        x = 0.2 + math.random() * 0.6,
+        y = 0.2 + math.random() * (constants.betaWave.y - 0.2),
+        score = score,
+        time = 0,
+        duration = scoreTransform / 2,
+        color = {255, 255, 255, 0},
+        maxAlpha = math.min(1, scoreTransform),
+        onComplete = function() end,
+    })
+end
+
+local function updatePlayerScoreEffect(effect, dt)
+    effect.time = effect.time + dt
+    local percent = effect.time / effect.duration
+
+    local otherPercent = percent * 2
+
+    local alpha
+    if percent < 0.5 then
+        alpha = -effect.maxAlpha * otherPercent * (otherPercent - 2)
+    else
+        alpha = effect.maxAlpha * (1 - math.pow(otherPercent - 1, 2))
+    end
+    effect.color[4] = 255 * alpha
+end
+
+local function updateArray(array, dt, updateFunc)
+    local index = 1
+    while index <= #array do
+        local item = array[index]
+        if item.time < item.duration then
+            updateFunc(item, dt)
+            index = index + 1
+        else
+            table.remove(array, index)
+            item.onComplete()
+        end
+    end
+end
+
 function love.update(dt)
     require("lurker").update()
     updateWave(state.alphaWave, dt)
     updateWave(state.betaWave, dt)
-    updateParticles(state.particles, dt)
-    updateTextEffects(state.textEffects, dt)
+    updateArray(state.particles, dt, updateParticle)
+    updateArray(state.textEffects, dt, updateTextEffect)
+    updateArray(state.playerScoreEffects, dt, updatePlayerScoreEffect)
 
     if state.actionCooldownTimer > 0 then
         state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
@@ -306,7 +322,8 @@ function love.update(dt)
             spawnTextEffect("+v", 40, waveY(constants.betaWave) - 10,
                             {hsvToRgb(constants.betaWave.hue, 1, 1, 1)})
         elseif com == "player_points" then
-            -- foo
+            -- Can't think of anything that looks good
+            -- spawnOtherPlayerScoreEffect(tonumber(arg1))
         end
     end
 end
@@ -448,6 +465,12 @@ local function drawTextEffect(textEffect)
     alignedPrint(textEffect.text, textEffect.x, textEffect.y, 0.5, 0.5)
 end
 
+local function drawPlayerScoreEffect(effect)
+    local x, y = effect.x * screenWidth, effect.y * screenHeight
+    love.graphics.setColor(unpack(effect.color))
+    alignedRectangle(x, y, 4 * effect.score, 1, 0.5, 0.5)
+end
+
 local function isInsideButton(button, x, y)
     local bx = buttonX(button)
     local by = buttonY(button)
@@ -510,6 +533,11 @@ function love.draw()
     -- Text Effects
     for _, textEffect in ipairs(state.textEffects) do
         drawTextEffect(textEffect)
+    end
+
+    -- Text Effects
+    for _, effect in ipairs(state.playerScoreEffects) do
+        drawPlayerScoreEffect(effect)
     end
 end
 

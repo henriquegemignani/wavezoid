@@ -22,4 +22,5 @@ return {
     },
     particles = {},
     textEffects = {},
+    playerScoreEffects = {},
 }
