@@ -132,6 +132,14 @@ local function spawnScoreEffect(radius, x, y, color, onComplete)
     })
 end
 
+local function waveColorAt(waveConfig, position)
+    -- -1 to 1
+    -- -0.25 to 0.25
+    local saturation = 0.75 + math.sin(
+        waveConfig.saturationPulseOffset + position / 2) / 4
+    return hsvToRgb(waveConfig.hue, saturation, 1, 1)
+end
+
 local function updateWave(wave, dt)
     wave.position = wave.position + wave.velocity * dt
     wave.affinity = wave.affinity - wave.affinity * 0.1 * dt
@@ -163,7 +171,7 @@ local function updateWave(wave, dt)
         spawnScoreEffect(math.log(math.abs(points)),
             centerX,
             constants[wave.name].y + math.random(-8, 8),
-            constants[wave.name].color,
+            {waveColorAt(constants[wave.name], wave.position)},
             function()
                 state.playerScore = state.playerScore + points
             end)
@@ -258,8 +266,6 @@ function love.update(dt)
         state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
     end
 
-    state.middleBarHue = (state.middleBarHue + 0.25 * dt) % 1
-
     local inboundChannel = love.thread.getChannel("inbound")
     local command = inboundChannel:pop()
     if command then
@@ -293,14 +299,13 @@ end
 local function renderWave(waveState, waveConfig)
     local pixelPosition = waveState.position + centerX * constants.pixelSize
 
+    love.graphics.setColor(waveColorAt(waveConfig, waveState.position))
+    love.graphics.circle("fill", centerX, waveConfig.y, constants.centerCircleSize)
+
     for col = 0, screenWidth - 1 do
-        -- -1 to 1
-        -- -0.25 to 0.25
-        local saturation = 0.75 + math.sin(pixelPosition / 2) / 4
-        love.graphics.setColor(hsvToRgb(waveConfig.hue, saturation, 1, 1))
+        love.graphics.setColor(waveColorAt(waveConfig, pixelPosition))
 
         local intensity = getWaveIntensityAt(waveState, pixelPosition)
-
         love.graphics.rectangle("fill",
             col,
             waveConfig.y - intensity,
@@ -430,20 +435,6 @@ local function isInsideButton(button, x, y)
 end
 
 function love.draw()
-    -- Hot area
-    love.graphics.setColor(hsvToRgb(state.middleBarHue, 0.75, 0.75, 1))
-    local centerBarSize = constants.centerBarSize
-
-    alignedRectangle(
-        centerX, constants.alphaWave.y,
-        centerBarSize, centerBarSize,
-        0.5, 0.5)
-    alignedRectangle(
-        centerX, constants.betaWave.y,
-        centerBarSize, centerBarSize,
-        0.5, 0.5)
-
-
     -- Waves
     renderWave(state.alphaWave, constants.alphaWave)
     alignedPrint("α", 5, constants.alphaWave.y, 0, 1)

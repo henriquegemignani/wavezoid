@@ -3,7 +3,7 @@ return {
     playerWaveInterval = 10,
     playerWaveDuration = 20,
     playerWaveRadius = 200,
-    centerBarSize = 20,
+    centerCircleSize = 10,
     actionCooldown = 1.5,
     targetVelocity = 10,
 
@@ -15,12 +15,12 @@ return {
     pixelSize = 1/16,
     alphaWave = {
         y = 125,
-        color = {255, 0, 0, 255},
         hue = 1,
+        saturationPulseOffset = 0,
     },
     betaWave = {
         y = 280,
-        color = {0, 255, 0, 255},
         hue = 0.6,
+        saturationPulseOffset = 0.5,
     },
 }
