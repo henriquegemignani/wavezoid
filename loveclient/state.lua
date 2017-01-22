@@ -8,7 +8,7 @@ return {
     alphaWave = {
         name = "alphaWave",
         position = 0,
-        velocity = 50,
+        velocity = 10,
         affinity = 1,
         pulses = {},
     },
@@ -20,4 +20,5 @@ return {
         pulses = {},
     },
     particles = {},
+    textEffects = {},
 }

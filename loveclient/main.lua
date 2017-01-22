@@ -208,11 +208,51 @@ local function updateParticles(particles, dt)
     end
 end
 
+local function updateTextEffect(textEffect, dt)
+    textEffect.time = textEffect.time + dt
+    local percent = textEffect.time / textEffect.duration
+
+    textEffect.x = textEffect.fromX + (textEffect.toX - textEffect.fromX) * percent
+    textEffect.y = textEffect.fromY + (textEffect.toY - textEffect.fromY) * percent * (percent - 2)
+    textEffect.color[4] = 255 * (1 - math.pow(percent, 2))
+end
+
+local function updateTextEffects(textEffects, dt)
+    local index = 1
+    while index <= #textEffects do
+        local textEffect = textEffects[index]
+        if textEffect.time < textEffect.duration then
+            updateTextEffect(textEffect, dt)
+            index = index + 1
+        else
+            table.remove(textEffects, index)
+            textEffect.onComplete()
+        end
+    end
+end
+
+local function spawnTextEffect(text, x, y, color)
+    table.insert(state.textEffects, {
+        fromX = x,
+        fromY = y,
+        toX = x,
+        toY = y + 30,
+        color = color,
+        x = x,
+        y = y,
+        time = 0,
+        duration = 1.5,
+        text = text,
+        onComplete = function() end,
+    })
+end
+
 function love.update(dt)
     require("lurker").update()
     updateWave(state.alphaWave, dt)
     updateWave(state.betaWave, dt)
     updateParticles(state.particles, dt)
+    updateTextEffects(state.textEffects, dt)
 
     if state.actionCooldownTimer > 0 then
         state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
@@ -234,8 +274,12 @@ function love.update(dt)
             sendPulse(state.betaWave, tonumber(arg1), tonumber(arg2))
         elseif com == "alpha_velocity" then
             state.alphaWave.velocity = state.alphaWave.velocity + tonumber(arg1)
+            spawnTextEffect("+v", 40, constants.alphaWave.y - 10,
+                            {hsvToRgb(constants.alphaWave.hue, 1, 1, 1)})
         elseif com == "beta_velocity" then
             state.betaWave.velocity = state.betaWave.velocity + tonumber(arg1)
+            spawnTextEffect("+v", 40, constants.betaWave.y - 10,
+                            {hsvToRgb(constants.betaWave.hue, 1, 1, 1)})
         end
     end
 end
@@ -371,6 +415,11 @@ local function drawParticle(particle)
     love.graphics.circle("fill", particle.x, particle.y, particle.radius)
 end
 
+local function drawTextEffect(textEffect)
+    love.graphics.setColor(unpack(textEffect.color))
+    alignedPrint(textEffect.text, textEffect.x, textEffect.y, 0.5, 0.5)
+end
+
 local function isInsideButton(button, x, y)
     local bx = buttonX(button)
     local by = buttonY(button)
@@ -440,6 +489,11 @@ function love.draw()
     -- Particles
     for _, particle in ipairs(state.particles) do
         drawParticle(particle)
+    end
+
+    -- Text Effects
+    for _, textEffect in ipairs(state.textEffects) do
+        drawTextEffect(textEffect)
     end
 end
 
