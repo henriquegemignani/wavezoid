@@ -305,6 +305,8 @@ function love.update(dt)
             state.betaWave.velocity = state.betaWave.velocity + tonumber(arg1)
             spawnTextEffect("+v", 40, waveY(constants.betaWave) - 10,
                             {hsvToRgb(constants.betaWave.hue, 1, 1, 1)})
+        elseif com == "player_points" then
+            -- foo
         end
     end
 end
