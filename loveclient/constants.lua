@@ -5,6 +5,7 @@ return {
     playerWaveRadius = 200,
     centerBarSize = 20,
     actionCooldown = 1.5,
+    targetVelocity = 10,
 
     pulseMinIntesity = 10,
     pulseMaxIntesity = 10,

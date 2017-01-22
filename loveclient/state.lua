@@ -8,7 +8,7 @@ return {
     alphaWave = {
         name = "alphaWave",
         position = 0,
-        velocity = 10,
+        velocity = 50,
         affinity = 1,
         pulses = {},
     },

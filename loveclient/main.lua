@@ -37,17 +37,46 @@ local function hsvToRgb(h, s, v, a)
   return r * 255, g * 255, b * 255, a * 255
 end
 
-local function genButton(x, y, label)
+local function genButton(x, y, label, saturation, hue)
     return { x = x, y = y, label = label,
              width = 50, height = 50,
+             saturation = saturation or 0,
+             hue = hue or 1,
              onRelease = function() end, }
 end
 
+local function drawPulse(intensity, x, y)
+    local lineWidth = 10
+    local pulseWidth = 10
+    for col = -lineWidth * 2, lineWidth * 2 do
+        local pointPos = 0
+
+        local distance = math.abs(col / 2)
+        if distance <= pulseWidth then
+            pointPos = intensity * math.cos( (math.pi / 2) * (distance / pulseWidth) )
+        end
+
+        love.graphics.rectangle("fill",
+            x + col / 2,
+            y - pointPos + intensity / 2,
+            1,
+            1)
+    end
+end
+
+local function createDrawPulse(intensity)
+    return function(...)
+        return drawPulse(intensity, ...)
+    end
+end
+
 local buttons = {}
-buttons.pulse_alpha     = genButton(2/8, 14/16, "ξα")
-buttons.pulse_beta      = genButton(3/8, 14/16, "ξβ")
-buttons.affinity_alpha  = genButton(5/8, 14/16, "+ψα")
-buttons.affinity_beta   = genButton(6/8, 14/16, "+ψβ")
+buttons.pulse_alpha_plus  = genButton(2/16, 14/16, createDrawPulse(10), 0.8, 1)
+buttons.pulse_alpha_minus = genButton(3.5/16, 14/16, createDrawPulse(-10), 0.8, 1)
+buttons.pulse_beta_plus   = genButton(5/16, 14/16, createDrawPulse(10), 0.8, 0.3)
+buttons.pulse_beta_minus  = genButton(6.5/16, 14/16, createDrawPulse(-10), 0.8, 0.3)
+buttons.affinity_alpha  = genButton(9.5/16, 14/16, "+ψ", 0.8, 1)
+buttons.affinity_beta   = genButton(11/16, 14/16, "+ψ", 0.8, 0.3)
 
 local function genGlobals()
     screenWidth, screenHeight = love.graphics.getDimensions()
@@ -102,6 +131,9 @@ end
 local function updateWave(wave, dt)
     wave.position = wave.position + wave.velocity * dt
     wave.affinity = wave.affinity - wave.affinity * 0.1 * dt
+
+    local deltaVelocity = (constants.targetVelocity - wave.velocity)
+    wave.velocity = wave.velocity + deltaVelocity * 0.1 * dt
 
     if wave.position > 4096 then
         wave.position = wave.position - 4096
@@ -245,25 +277,29 @@ local function sendCommandToBoth(command)
     inboundChannel:push(command)
 end
 
-local function buildPulseArgs()
+local function buildPulseArgs(signal)
     local intensity = math.random(constants.pulseMinIntesity,
                                   constants.pulseMaxIntesity)
-    if math.random() < constants.pulseNegativeChance then
-        intensity = -intensity
-    end
-
     local width = math.random(constants.pulseMinWidth,
                               constants.pulseMaxWidth)
 
-    return intensity, width
+    return signal * intensity, width
 end
 
-function buttons.pulse_alpha.onRelease()
-    sendCommandToBoth(string.format("pulse_alpha %d %d", buildPulseArgs()))
+function buttons.pulse_alpha_plus.onRelease()
+    sendCommandToBoth(string.format("pulse_alpha %d %d", buildPulseArgs(1)))
 end
 
-function buttons.pulse_beta.onRelease()
-    sendCommandToBoth(string.format("pulse_beta %d %d", buildPulseArgs()))
+function buttons.pulse_beta_plus.onRelease()
+    sendCommandToBoth(string.format("pulse_beta %d %d", buildPulseArgs(1)))
+end
+
+function buttons.pulse_alpha_minus.onRelease()
+    sendCommandToBoth(string.format("pulse_alpha %d %d", buildPulseArgs(-1)))
+end
+
+function buttons.pulse_beta_minus.onRelease()
+    sendCommandToBoth(string.format("pulse_beta %d %d", buildPulseArgs(-1)))
 end
 
 function buttons.affinity_alpha.onRelease()
@@ -290,22 +326,20 @@ local function drawButton(button)
     local height = button.height
     local border = 4
 
-    if button.pressing then
-        love.graphics.setColor(180, 180, 180, 255)
-    else
-        love.graphics.setColor(120, 120, 120, 255)
-    end
+    love.graphics.setColor(hsvToRgb(button.hue, button.saturation,
+        button.pressing and 0.8 or 0.5, 1))
     alignedRectangle(x, y, width + border, height + border, 0.5, 0.5)
 
-    if button.hover then
-        love.graphics.setColor(100, 100, 100, 255)
-    else
-        love.graphics.setColor(80, 80, 80, 255)
-    end
+    love.graphics.setColor(hsvToRgb(button.hue, button.saturation,
+        button.hover and 0.4 or 0.3, 1))
     alignedRectangle(x, y, width, height, 0.5, 0.5)
 
-    love.graphics.setColor(255, 255, 255, 255)
-    alignedPrint(label, x, y, 0.5, 0.5)
+    love.graphics.setColor(hsvToRgb(button.hue, button.saturation * 0.5, 1, 1))
+    if type(label) == "string" then
+        alignedPrint(label, x, y, 0.5, 0.5)
+    else
+        label(x, y)
+    end
 
     if state.actionCooldownTimer > 0 then
         love.graphics.setColor(0, 0, 0, 150)
