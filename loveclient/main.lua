@@ -48,12 +48,32 @@ local function getWaveIntensityAt(waveState, position)
 end
 
 local function spawnScoreEffect(count, x, y, color)
+    table.insert(state.particles, {
+        fromX = x,
+        fromY = y,
+        toX = centerX,
+        toY = 30,
+        color = color,
+        radius = math.sqrt(count),
+        x = x,
+        y = y,
+        midWayX = centerX + math.random(-200, 200),
+        time = 0,
+        duration = 1,
+    })
 end
 
 local function updateWave(wave, dt)
     wave.velocity = 20
     wave.position = wave.position + wave.velocity * dt
     wave.affinity = wave.affinity - wave.affinity * 0.1 * dt
+
+    if wave.position > 4096 then
+        wave.position = wave.position - 4096
+        for _, pulse in ipairs(wave.pulses) do
+            pulse.position = pulse.position - 4096
+        end
+    end
 
     local waveRightCorner = wave.position - screenWidth * constants.pixelSize
     local index = 1
@@ -65,20 +85,36 @@ local function updateWave(wave, dt)
         end
     end
 
-    if wave.position > 4096 then
-        wave.position = wave.position - 4096
-        for _, pulse in ipairs(wave.pulses) do
-            pulse.position = pulse.position - 4096
-        end
-    end
-
     -- Give points
     local points = getWaveIntensityAt(wave, wave.position) * wave.affinity * dt
     state.playerScore = state.playerScore + points
-    if points > dt then
-        -- Spawn effect!
-        spawnScoreEffect(points, centerX, constants[wave.name].y, constants[wave.name].color)
+
+    for _, pulse in ipairs(wave.pulses) do
+        local distance = (wave.position - pulse.position) / constants.pixelSize
+        if math.abs(distance) < constants.centerBarWidth / 2 then
+            spawnScoreEffect(pulse.intensity * wave.affinity,
+                centerX + distance + math.random(-2, 2),
+                constants[wave.name].y + math.random(-2, 2),
+                constants[wave.name].color)
+        end
     end
+end
+
+local function updateParticle(particle, dt)
+    particle.time = particle.time + dt
+    local percent = particle.time / particle.duration
+
+    local otherPercent = percent * 2
+
+    if percent < 0.5 then
+        particle.x = -(particle.midWayX - particle.fromX)
+                       * otherPercent * (otherPercent - 2) + particle.fromX
+    else
+        particle.x = (particle.toX - particle.midWayX)
+                       * math.pow(otherPercent - 1, 2) + particle.midWayX
+    end
+    particle.x = particle.fromX + (1 - math.pow(percent - 0.5, 2)) * 50
+    particle.y = particle.fromY + (particle.toY - particle.fromY) * percent
 end
 
 local function sendPulse(waveState, intensity, width)
@@ -89,10 +125,24 @@ local function sendPulse(waveState, intensity, width)
     })
 end
 
+local function updateParticles(particles, dt)
+    local index = 1
+    while index <= #particles do
+        local particle = particles[index]
+        if particle.time < particle.duration then
+            updateParticle(particle, dt)
+            index = index + 1
+        else
+            table.remove(particles, index)
+        end
+    end
+end
+
 function love.update(dt)
     require("lurker").update()
     updateWave(state.alphaWave, dt)
     updateWave(state.betaWave, dt)
+    updateParticles(state.particles, dt)
 
     if state.actionCooldownTimer > 0 then
         state.actionCooldownTimer = math.max(state.actionCooldownTimer - dt, 0)
@@ -219,6 +269,11 @@ local function drawButton(button)
     end
 end
 
+local function drawParticle(particle)
+    love.graphics.setColor(unpack(particle.color))
+    love.graphics.circle("fill", particle.x, particle.y, particle.radius)
+end
+
 local function isInsideButton(button, x, y)
     local bx = buttonX(button)
     local by = buttonY(button)
@@ -276,6 +331,11 @@ function love.draw()
         love.graphics.setColor(255, 255, 0, 255)
         alignedPrint(string.format("Current Players: %d", state.currentPlayers),
                      5, screenHeight - 5, 0, 1, _G.smallFont)
+    end
+
+    -- Particles
+    for _, particle in ipairs(state.particles) do
+        drawParticle(particle)
     end
 end
 
